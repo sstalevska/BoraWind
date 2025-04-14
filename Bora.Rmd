@@ -1,0 +1,155 @@
+---
+title: "Bora"
+output: html_document
+---
+
+
+We took wind data taken in Trieste molo F.lli Bandiera. We put it all together and we filtered the Bora wind out of all winds recorded in Trieste by these thresholds:
+
+ " Define the presence of the Bora as a wind blowing from ENE (around 67.5 degrees), N or E, the wind is defined as present if the speed is at least 10 m/s. " 
+ 10 m/s = 36 km/h since the data is in km/h as per the column name.
+ 
+Direction	Degrees
+N (North)	0°
+NE (Northeast)	45°
+ENE (East-Northeast)	67.5°
+E (East)	90°
+
+
+```{r}
+library(tidyverse)
+
+# Taking data from 2000-2024, from Trieste molo F.lli Bandiera.
+
+# The CSVs use semicolon (;) as the delimiter. They have column headers on the first row (only once per file). They need to be combined without duplicating headers. A new YEAR column needs to be added from the filename.
+
+# all the CSV files - read with a regex that selects filenames named "exactly 4 digits.csv"
+
+files <- list.files("data", pattern = "^\\d{4}\\.csv$", full.names = TRUE)
+ 
+# Function to read a single CSV and add YEAR column to distinguish between years
+read_with_year <- function(file) {
+  year <- str_extract(basename(file), "\\d{4}") # add year from the filename
+
+  df <- suppressWarnings(
+    read_delim(file, delim = ";", col_types = cols(.default = "c"), na = "-") 
+  )
+  
+  df <- df |> mutate(YEAR = year)
+  return(df)
+}
+
+# Read and combine all
+all_data <- map_dfr(files, read_with_year)
+
+# Move YEAR column to the front, next to month, day, hour.
+all_data <- all_data |> relocate(YEAR)
+
+# Convert all columns EXCEPT YEAR to numeric if possible  -  NA WHERE DATA IS MISSING
+# Some of the years have all "-" in some columns => NA.
+# Reason - NA is a standard in R for representing missing or unavailable data. By leaving the value as NA, it ensures that it won’t be accidentally treated as a valid number in calculations or visualizations.
+
+all_data <- all_data |>
+  mutate(across(.cols = -YEAR, ~ suppressWarnings(as.numeric(.))))
+
+# Check result
+head(all_data)
+
+
+# This renames the column names to English for easier handling.
+
+all_data <- all_data |>
+   rename(
+   wind_speed_kmH = `Vento med km/h`, 
+   wind_direction_FromN = `Direzione Vento gradi N`,
+    pressure = `Pressione hPa`,
+    month = `mese`,
+    day = `giorno`,
+    hour = `ora UTC*`,
+    day = `giorno`,
+   rainMM = `Pioggia mm`,
+   temperatureC = `Temp. gradi C`,
+   humidity = `Umidita' %`,
+  wind_speed_kmH_MAX = `Vento max km/h`,
+   radiation_KJ_m2 = `Radiaz. KJ/m2`,
+   pressure_hPa = `Pressione hPa`,
+   leaf_wetness_min = `Bagnatura Fogliare min.`
+ )
+
+head(all_data)
+
+# Filter Bora events
+bora_data <- all_data |>
+  filter(
+    wind_direction_FromN >= 0 & wind_direction_FromN <= 90,
+    wind_speed_kmH >= 36
+  )
+
+
+head(bora_data)
+
+```
+How often does the Bora blow in Trieste?
+
+Firstly, we will analyze the occurences of Bora in Trieste per year.
+
+```{r}
+
+
+# Convert again after renaming
+all_data <- all_data |>
+  mutate(across(c(wind_speed_kmH, wind_direction_FromN, pressure_hPa), as.numeric))
+
+
+# Yearly count of Bora events
+bora_by_year <- bora_data |>
+  group_by(YEAR) |>
+  summarise(events = n(), .groups = "drop")
+
+# Plot
+ggplot(bora_by_year, aes(x = as.numeric(YEAR), y = events)) +
+  geom_col(fill = "lightpink") +
+  labs(
+    title = "Bora Events per Year in Trieste (2000–2024)",
+    x = "Year",
+    y = "Number of Events"
+  ) +
+  theme_minimal()
+
+```
+Then, we're going to analyze how often the Bora wind appears per month, by taking the average across the years in the dataset. The Bora winds seem to occur more frequently during the colder months, from autumn to early spring (October through March).
+```{r}
+library(tidyverse)
+
+# First, ensure 'mese' is numeric or integer (in case it's in a different format)
+bora_data$month <- as.integer(bora_data$month)
+
+# Check if there are any missing values in 'month'
+sum(is.na(bora_data$month))  # This will give you the number of missing values
+
+# Remove rows with NA in month (if any)
+bora_data <- bora_data |>
+  filter(!is.na(month))
+
+# Count Bora events per month
+bora_by_month <- bora_data |>
+  group_by(month) |>
+  summarise(events = n(), .groups = 'drop')
+
+# Convert 'month' to a proper factor for correct ordering in the plot
+bora_by_month$month <- factor(bora_by_month$month, levels = 1:12, labels = month.name)
+
+# Plot the Bora events by month
+ggplot(bora_by_month, aes(x = month, y = events)) +
+  geom_col(fill = "purple") +
+  labs(
+    title = "Number of Bora Events per Month in Trieste (2000–2024)",
+    x = "Month",
+    y = "Number of Events"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
