@@ -2,18 +2,21 @@
 title: "Bora"
 output: html_document
 ---
+This project explores the properties and frequency of the Bora wind in Trieste based on hourly meteorological observations of the Trieste molo F.lli Bandiera observatory, provided by OSMER. The Bora is herein assumed to be any wind coming from the north (N), northeast (NE), or east (E) with a speed of at least 10 m/s (36 km/h).
 
+We will explore several aspects of the wind: 
+- How often does the Bora blow in Trieste?
+- Monthly patterns to observe seasonal behavior.
+- Is it true, as people claim in Trieste, that the Bora blows for an odd number of days?
+- Annual trends of the Bora (by month)
+- Daily trends of the Bora (by hour).
+- Historical trends of the Bora (over time).
+- A specific measurement in the data set (temperature, pressure, etc.) and its association with the Bora.
 
-We took wind data taken in Trieste molo F.lli Bandiera. We put it all together and we filtered the Bora wind out of all winds recorded in Trieste by these thresholds:
+This work provides insight into the dynamics of one of Trieste's most iconic meteorological phenomena.
 
- " Define the presence of the Bora as a wind blowing from ENE (around 67.5 degrees), N or E, the wind is defined as present if the speed is at least 10 m/s. " 
- 10 m/s = 36 km/h since the data is in km/h as per the column name.
- 
-Direction	Degrees
-N (North)	0°
-NE (Northeast)	45°
-ENE (East-Northeast)	67.5°
-E (East)	90°
+We took wind data taken in Trieste molo F.lli Bandiera. We put it all together, using the semicolon as a delimiter and taking the column headers from the first row. Additionally, we added a YEAR column for the appended dataset that contains all years. We also changed the column names from Italian to English. Missing values marked as "-" in the dataset were changed to NA because NA is a standard in R for representing missing or unavailable data. Leaving the value as NA ensures that it won’t be accidentally treated as a valid number in calculations or visualizations. We filtered the Bora wind out of all winds recorded in Trieste by these thresholds: speed of at least 36 km/h, coming from N (North) 0°, NE (Northeast) 45°, ENE (East-Northeast) 67.5°, or E (East) 90°. 
+
 
 
 ```{r}
