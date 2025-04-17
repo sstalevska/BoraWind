@@ -90,15 +90,12 @@ bora_data <- all_data |>
 
 
 head(bora_data)
-
 ```
-How often does the Bora blow in Trieste?
+## How often does the Bora blow in Trieste?
 
 Firstly, we will analyze the occurences of Bora in Trieste per year.
 
 ```{r}
-
-
 # Convert again after renaming
 all_data <- all_data |>
   mutate(across(c(wind_speed_kmH, wind_direction_FromN, pressure_hPa), as.numeric))
@@ -152,7 +149,94 @@ ggplot(bora_by_month, aes(x = month, y = events)) +
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
+## 2. Is it true, as people claim in Trieste, that the Bora blows for an odd number of days?
+Bora blew for 997 streaks in the record  
+605 had an odd length while 392 had an even length  
+The exact binomial test gives a p value of 1.6 × 10⁻¹¹ which is far below 0.05 so the result is significant  
+The estimated chance that any streak has an odd length is about 0.61 with a 95 percent confidence range from 0.58 to 0.64  
+The data back up the local belief that the Bora tends to blow for an odd number of days
+```{r}
+library(tidyverse)
+
+# unique Bora days
+bora_days <- bora_data |>
+  mutate(date = as.Date(paste(YEAR, month, day, sep = "-"))) |>
+  distinct(date) |>
+  arrange(date)
+
+# consecutive‑day streak ids
+bora_days <- bora_days |>
+  mutate(new_streak = c(TRUE, diff(date) != 1)) |>
+  mutate(streak_id = cumsum(new_streak))
+
+# length of each streak
+streaks <- bora_days |>
+  group_by(streak_id) |>
+  summarise(length = n(), .groups = "drop")
+
+# counts of odd vs even streaks
+odd_count  <- sum(streaks$length %% 2 == 1)
+even_count <- sum(streaks$length %% 2 == 0)
+total_streaks <- nrow(streaks)
+
+# exact binomial test
+binom.test(odd_count, total_streaks, p = 0.5)
+
+# bar plot
+ggplot(tibble(parity = c("Odd", "Even"),
+              count  = c(odd_count, even_count)),
+       aes(parity, count, fill = parity)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = count), vjust = -0.3) +
+  scale_fill_manual(values = c("Odd" = "lightpink", "Even" = "grey")) +
+  labs(title = "Bora streaks by parity of length",
+       x = NULL, y = "Number of streaks") +
+  theme_minimal()
 
 ```
 
+## 3. Average monthly distribution (seasonality)
+We used hourly wind data from Trieste molo Flli Bandiera for the years 2000 to 2024. A Bora hour is any record with wind speed at least thirty six kilometres per hour and a direction between zero and ninety degrees measured clockwise from north. First all hourly files were merged and the numeric fields were cleaned. Then a filter kept only the Bora hours. For seasonality we grouped these Bora hours by year and by numeric month. That gave twelve counts for every year. Next we took the mean of those counts across the twenty five year span to obtain the average number of Bora events for each month. The tibble printed below the graph lists those averages. January shows about eighty seven events per year. February is even higher near ninety one. Counts then fall through spring and reach a minimum near twenty seven in June. Activity begins to rise in August and climbs back above seventy in November with December near seventy eight. The bar plot visualises this curve. Each light blue bar stands for a month numbered one through twelve on the horizontal axis. The vertical axis shows the mean count of hourly events. The tallest bars sit over the winter months while the lowest bar sits over June. The shape confirms that the Bora is most active from mid autumn through late winter and quietest in early summer.
+```{r bora_monthly_avg}
+bora_by_month_year <- bora_data |>
+  group_by(YEAR, month) |>
+  summarise(events = n(), .groups = "drop")
+
+bora_month_avg <- bora_by_month_year |>
+  group_by(month) |>
+  summarise(avg_events = mean(events), .groups = "drop") |>
+  mutate(month = factor(month, levels = 1:12))
+
+ggplot(bora_month_avg, aes(month, avg_events)) +
+  geom_col(fill = "lightblue") +
+  labs(title = "Average monthly Bora events (2000–2024)", x = "Month", y = "Avg number of events") +
+  theme_minimal()
+
+# print table for report
+print(bora_month_avg)
+```
+
+
+## 4. Historical trend (total events per year)
+We kept only the hours when wind speed was at least thirty six kilometres per hour and the direction was between north and east. Then we counted those Bora hours for every year from two thousand to two thousand twenty four. The counts swing widely each year from about four hundred to almost nine hundred events. A linear model on these totals gives a flat slope and a high p value so time explains almost none of the variation. The result says that Bora activity shows no clear upward or downward trend over the last twenty five years even though single years can be very calm or very busy.
+```{r bora_year_trend}
+bora_year_total <- bora_data |>
+  group_by(YEAR) |>
+  summarise(total_events = n(), .groups = "drop") |>
+  mutate(YEAR = as.numeric(YEAR))
+
+ggplot(bora_year_total, aes(YEAR, total_events)) +
+  geom_line(linewidth = 0.8, colour = "steelblue") +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", linewidth = 0.6) +
+  labs(title = "Annual Bora events in Trieste (2000–2024)", x = "Year", y = "Number of events") +
+  theme_minimal()
+
+lm_res <- lm(total_events ~ YEAR, data = bora_year_total)
+summary(lm_res)
+
+# print yearly totals for reference
+print(bora_year_total)
+```
