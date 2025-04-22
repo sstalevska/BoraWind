@@ -223,12 +223,9 @@ print(bora_month_avg)
 
 
 ## 4. Explore the daily trends of the Bora (by hour).
-We built UTC datetimes from the raw fields and converted them to Europe/Rome time.  
-We then counted Bora events in each local hour from 0 to 23.  
-The bar plot shows the lowest activity at 1AM.  
-Event counts rise to a clear peak around 8AM.  
-A lull follows in the early afternoon near 2–4PM.
-Activity picks up again in the evening hours.  
+We converted UTC timestamps to Europe/Rome time. In the code we count how many events occur in each hour and fill missing hours with zero.
+As we can observe on the plot daily trends of Bora peak at around 9h, and then drop to a low at 15h. They climb again in the late afternoon and evening. 
+
 
 ```{r bora_year_trend}
 library(lubridate)
@@ -256,7 +253,7 @@ bora_by_local_hour <- bora_local %>%
   mutate(local_hour = factor(local_hour, levels = 0:23))
 
 ggplot(bora_by_local_hour, aes(local_hour, events)) +
-  geom_col(fill = "steelblue") +
+  geom_col(fill = "lightpink") +
   labs(
     title = "Total Bora Events by Local Hour (CET/CEST)",
     x = "Local Hour", y = "Number of Events"
