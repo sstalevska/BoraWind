@@ -109,7 +109,6 @@ bora_by_year <- bora_data |>
   group_by(YEAR) |>
   summarise(events = n(), .groups = "drop")
 
-# Plot
 ggplot(bora_by_year, aes(x = as.numeric(YEAR), y = events)) +
   geom_col(fill = "lightpink") +
   labs(
@@ -125,25 +124,25 @@ Then, we're going to analyze how often the Bora wind appears per month, by takin
 ```{r}
 library(tidyverse)
 
-# First, ensure 'mese' is numeric or integer (in case it's in a different format)
+# First, ensuring 'month' is numeric or integer (in case it's in a different format)
 bora_data$month <- as.integer(bora_data$month)
 
-# Check if there are any missing values in 'month'
-sum(is.na(bora_data$month))  # This will give you the number of missing values
+# Checking if there are any missing values in 'month'
+sum(is.na(bora_data$month))  
 
-# Remove rows with NA in month (if any)
+# Removing rows with NA in month (if any)
 bora_data <- bora_data |>
   filter(!is.na(month))
 
-# Count Bora events per month
+# Counting Bora events per month
 bora_by_month <- bora_data |>
   group_by(month) |>
   summarise(events = n(), .groups = 'drop')
 
-# Convert 'month' to a proper factor for correct ordering in the plot
+# Converting 'month' to a proper factor for correct ordering in the plot
 bora_by_month$month <- factor(bora_by_month$month, levels = 1:12, labels = month.name)
 
-# Plot the Bora events by month
+# Plotting the Bora events by month
 ggplot(bora_by_month, aes(x = month, y = events)) +
   geom_col(fill = "purple") +
   labs(
@@ -223,26 +222,47 @@ print(bora_month_avg)
 ```
 
 
-## 4. Historical trend (total events per year)
-We counted the Bora hours for every year from two thousand to two thousand twenty four. The counts swing widely each year from about four hundred to almost nine hundred events. A linear model on these totals gives a flat slope and a high p value so time explains almost none of the variation. The result says that Bora activity shows no clear upward or downward trend over the last twenty five years, even though single years can be very calm or very busy.
-```{r bora_year_trend}
-bora_year_total <- bora_data |>
-  group_by(YEAR) |>
-  summarise(total_events = n(), .groups = "drop") |>
-  mutate(YEAR = as.numeric(YEAR))
+## 4. Explore the daily trends of the Bora (by hour).
+We built UTC datetimes from the raw fields and converted them to Europe/Rome time.  
+We then counted Bora events in each local hour from 0 to 23.  
+The bar plot shows the lowest activity at 1AM.  
+Event counts rise to a clear peak around 8AM.  
+A lull follows in the early afternoon near 2–4PM.
+Activity picks up again in the evening hours.  
 
-ggplot(bora_year_total, aes(YEAR, total_events)) +
-  geom_line(linewidth = 0.8, colour = "steelblue") +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", linewidth = 0.6) +
-  labs(title = "Annual Bora events in Trieste (2000–2024)", x = "Year", y = "Number of events") +
+```{r bora_year_trend}
+library(lubridate)
+library(dplyr)
+
+# a proper UTC datetime from the columns
+bora_local <- bora_data %>%
+  mutate(
+    dt_utc = make_datetime(
+      year  = as.integer(YEAR),
+      month = month,
+      day   = day,
+      hour  = hour,
+      tz    = "UTC"
+    ),
+    dt_local = with_tz(dt_utc, "Europe/Rome"),
+    local_hour = hour(dt_local)
+  )
+
+# count by local hour
+bora_by_local_hour <- bora_local %>%
+  group_by(local_hour) %>%
+  summarise(events = n(), .groups = "drop") %>%
+  complete(local_hour = 0:23, fill = list(events = 0)) %>%
+  mutate(local_hour = factor(local_hour, levels = 0:23))
+
+ggplot(bora_by_local_hour, aes(local_hour, events)) +
+  geom_col(fill = "steelblue") +
+  labs(
+    title = "Total Bora Events by Local Hour (CET/CEST)",
+    x = "Local Hour", y = "Number of Events"
+  ) +
   theme_minimal()
 
-lm_res <- lm(total_events ~ YEAR, data = bora_year_total)
-summary(lm_res)
-
-# print yearly totals for reference
-print(bora_year_total)
 ```
 
 
