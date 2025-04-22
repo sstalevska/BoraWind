@@ -91,7 +91,7 @@ bora_data <- all_data |>
 
 head(bora_data)
 ```
-## How often does the Bora blow in Trieste?
+## 1. How often does the Bora blow in Trieste?
 
 Firstly, we will analyze the occurences of Bora in Trieste per year.
 
@@ -240,3 +240,75 @@ summary(lm_res)
 # print yearly totals for reference
 print(bora_year_total)
 ```
+
+
+## 5. Exploring the Historical Trends of the Bora (Over Time)
+To analyze the long-term behavior of the Bora, we extracted daily records from the Trieste molo F.lli Bandiera station between 2000 and 2024. A day was classified as a "Bora day" if the maximum wind speed reached at least 10 m/s (converted from km/h), and the wind direction was between 45° and 90° from north. These constraints align with the established definition of a typical Bora wind blowing from the northeast.
+For each year, we counted how many such Bora days occurred. The result is a time series plot displaying the number of Bora days annually from 2000 to 2024.
+From the graph, we observe that the number of Bora days per year fluctuates significantly, ranging from around 40 to more than 140. Despite these yearly variations, the overall trend appears relatively stable with no strong upward or downward movement. This suggests that, although some years experience more Bora activity than others, there is no significant long-term increase or decrease in the frequency of Bora days over this 25-year span.
+```{r}
+
+bora_days <- all_data |>
+  filter(wind_speed_kmH_MAX * 0.27778 >= 10,
+         wind_direction_FromN >= 45,
+         wind_direction_FromN <= 90) |>
+  mutate(date = as.Date(paste(YEAR, month, day, sep = "-"))) |>
+  distinct(YEAR, date) |>
+  group_by(YEAR) |>
+  summarise(bora_day_count = n(), .groups = "drop")
+
+# Plot
+ggplot(bora_days, aes(x = as.numeric(YEAR), y = bora_day_count)) +
+  geom_line(color = "darkblue") +
+  geom_point(size = 2) +
+  labs(
+    title = "Number of Bora Days per Year (2000–2024)",
+    x = "Year", y = "Number of Bora Days"
+  ) +
+  theme_minimal()
+```
+
+
+### 6. Finally, choose at least a different measurement available in the data set (temperature, pressure, ...) and evaluate the association with the Bora.
+We filtered the dataset to include only rows with valid values for wind speed, wind direction, and temperature. Days were classified as "Bora days" using the same criteria: wind speed of at least 10 m/s and direction between 45° and 90°. The remaining days were considered "non-Bora days."
+We then calculated the average daily temperature for both categories. The results showed that the mean temperature on Bora days was noticeably lower than on non-Bora days. This aligns with local expectations, as Bora winds are known to bring cold, dry air from the northeast.
+To better visualize the difference, we used a boxplot comparing the temperature distributions. The box for Bora days lies visibly lower than that for non-Bora days, reinforcing the finding that Bora is typically associated with colder weather. This result highlights a clear meteorological impact of the Bora beyond just wind behavior.
+
+```{r}
+# Filter again and define Bora and Non-Bora conditions
+temp_df <- all_data |>
+  filter(!is.na(wind_speed_kmH_MAX),
+         !is.na(wind_direction_FromN),
+         !is.na(temperatureC)) |>
+  mutate(is_bora = wind_speed_kmH_MAX * 0.27778 >= 10 &
+           wind_direction_FromN >= 45 &
+           wind_direction_FromN <= 90)
+
+# Prepare temperature vectors
+bora_temp <- temp_df |>
+  filter(is_bora) |>
+  pull(temperatureC)
+
+nonbora_temp <- temp_df |>
+  filter(!is_bora) |>
+  pull(temperatureC)
+
+# Summary means
+mean_bora <- mean(bora_temp, na.rm = TRUE)
+mean_nonbora <- mean(nonbora_temp, na.rm = TRUE)
+
+print(glue::glue("Average Bora temp: {round(mean_bora, 2)} °C"))
+print(glue::glue("Average Non-Bora temp: {round(mean_nonbora, 2)} °C"))
+
+# Boxplot
+ggplot(data.frame(
+  Type = rep(c("Bora Days", "Non-Bora Days"), times = c(length(bora_temp), length(nonbora_temp))),
+  Temp = c(bora_temp, nonbora_temp)
+), aes(x = Type, y = Temp, fill = Type)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(title = "Temperature Comparison: Bora vs Non-Bora Days",
+       y = "Daily Avg Temp (°C)", x = "") +
+  theme_minimal()
+
+```
+
