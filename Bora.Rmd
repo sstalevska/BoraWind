@@ -2,9 +2,12 @@
 title: "Bora"
 output: html_document
 ---
+# Bora
+
 This project explores the properties and frequency of the Bora wind in Trieste based on hourly meteorological observations of the Trieste molo F.lli Bandiera observatory, provided by OSMER. The Bora is herein assumed to be any wind coming from the north (N), northeast (NE), or east (E) with a speed of at least 10 m/s (36 km/h).
 
 We will explore several aspects of the wind: 
+
 - How often does the Bora blow in Trieste?
 - Monthly patterns to observe seasonal behavior.
 - Is it true, as people claim in Trieste, that the Bora blows for an odd number of days?
@@ -118,6 +121,7 @@ ggplot(bora_by_year, aes(x = as.numeric(YEAR), y = events)) +
 
 ```
 Then, we're going to analyze how often the Bora wind appears per month, by taking the average across the years in the dataset. The Bora winds seem to occur more frequently during the colder months, from autumn to early spring (October through March).
+
 ```{r}
 library(tidyverse)
 
@@ -152,11 +156,11 @@ ggplot(bora_by_month, aes(x = month, y = events)) +
 ```
 
 ## 2. Is it true, as people claim in Trieste, that the Bora blows for an odd number of days?
-Bora blew for 997 streaks in the record  
-605 had an odd length while 392 had an even length  
-The exact binomial test gives a p value of 1.6 × 10⁻¹¹ which is far below 0.05 so the result is significant  
-The estimated chance that any streak has an odd length is about 0.61 with a 95 percent confidence range from 0.58 to 0.64  
-The data back up the local belief that the Bora tends to blow for an odd number of days
+Bora blew for 997 streaks in the records.
+605 of them had an odd length, while 392 had an even length. 
+The exact binomial test gives a p value of 1.6 × 10⁻¹¹ which is far below 0.05 so the result is significant.
+The estimated chance that any streak has an odd length is about 0.61 with a 95 percent confidence range from 0.58 to 0.64.  
+The data backs up the local belief that the Bora tends to blow for an odd number of days.
 ```{r}
 library(tidyverse)
 
@@ -198,7 +202,7 @@ ggplot(tibble(parity = c("Odd", "Even"),
 ```
 
 ## 3. Average monthly distribution (seasonality)
-We used hourly wind data from Trieste molo Flli Bandiera for the years 2000 to 2024. A Bora hour is any record with wind speed at least thirty six kilometres per hour and a direction between zero and ninety degrees measured clockwise from north. First all hourly files were merged and the numeric fields were cleaned. Then a filter kept only the Bora hours. For seasonality we grouped these Bora hours by year and by numeric month. That gave twelve counts for every year. Next we took the mean of those counts across the twenty five year span to obtain the average number of Bora events for each month. The tibble printed below the graph lists those averages. January shows about eighty seven events per year. February is even higher near ninety one. Counts then fall through spring and reach a minimum near twenty seven in June. Activity begins to rise in August and climbs back above seventy in November with December near seventy eight. The bar plot visualises this curve. Each light blue bar stands for a month numbered one through twelve on the horizontal axis. The vertical axis shows the mean count of hourly events. The tallest bars sit over the winter months while the lowest bar sits over June. The shape confirms that the Bora is most active from mid autumn through late winter and quietest in early summer.
+For seasonality we grouped these Bora hours by year and by numeric month. That gave twelve counts for every year. Next we took the mean of those counts across the twenty five year span to obtain the average number of Bora events for each month. The tibble printed below the graph lists those averages. January shows about 87 events per year. February is even higher than that, with almost 91 events. Numbers drop in the spring months and reach a minimum, that is 21 events, in June. Activity begins to rise in August and climbs back above 70 in November with December near 78. The bar plot visualises this curve. Each light blue bar stands for a month numbered one through twelve on the horizontal axis. The vertical axis shows the mean count of hourly events. The tallest bars sit over the winter months while the lowest bar sits over June. The shape confirms that the Bora is most active from mid autumn through late winter and quiets down in early summer.
 ```{r bora_monthly_avg}
 bora_by_month_year <- bora_data |>
   group_by(YEAR, month) |>
@@ -220,7 +224,7 @@ print(bora_month_avg)
 
 
 ## 4. Historical trend (total events per year)
-We kept only the hours when wind speed was at least thirty six kilometres per hour and the direction was between north and east. Then we counted those Bora hours for every year from two thousand to two thousand twenty four. The counts swing widely each year from about four hundred to almost nine hundred events. A linear model on these totals gives a flat slope and a high p value so time explains almost none of the variation. The result says that Bora activity shows no clear upward or downward trend over the last twenty five years even though single years can be very calm or very busy.
+We counted the Bora hours for every year from two thousand to two thousand twenty four. The counts swing widely each year from about four hundred to almost nine hundred events. A linear model on these totals gives a flat slope and a high p value so time explains almost none of the variation. The result says that Bora activity shows no clear upward or downward trend over the last twenty five years, even though single years can be very calm or very busy.
 ```{r bora_year_trend}
 bora_year_total <- bora_data |>
   group_by(YEAR) |>
@@ -243,7 +247,7 @@ print(bora_year_total)
 
 
 ## 5. Exploring the Historical Trends of the Bora (Over Time)
-To analyze the long-term behavior of the Bora, we extracted daily records from the Trieste molo F.lli Bandiera station between 2000 and 2024. A day was classified as a "Bora day" if the maximum wind speed reached at least 10 m/s (converted from km/h), and the wind direction was between 45° and 90° from north. These constraints align with the established definition of a typical Bora wind blowing from the northeast.
+
 For each year, we counted how many such Bora days occurred. The result is a time series plot displaying the number of Bora days annually from 2000 to 2024.
 From the graph, we observe that the number of Bora days per year fluctuates significantly, ranging from around 40 to more than 140. Despite these yearly variations, the overall trend appears relatively stable with no strong upward or downward movement. This suggests that, although some years experience more Bora activity than others, there is no significant long-term increase or decrease in the frequency of Bora days over this 25-year span.
 ```{r}
@@ -270,8 +274,8 @@ ggplot(bora_days, aes(x = as.numeric(YEAR), y = bora_day_count)) +
 
 
 ### 6. Finally, choose at least a different measurement available in the data set (temperature, pressure, ...) and evaluate the association with the Bora.
-We filtered the dataset to include only rows with valid values for wind speed, wind direction, and temperature. Days were classified as "Bora days" using the same criteria: wind speed of at least 10 m/s and direction between 45° and 90°. The remaining days were considered "non-Bora days."
-We then calculated the average daily temperature for both categories. The results showed that the mean temperature on Bora days was noticeably lower than on non-Bora days. This aligns with local expectations, as Bora winds are known to bring cold, dry air from the northeast.
+
+We calculated the average daily temperature for both Bora and Non-Bora data. The results showed that the mean temperature on Bora days was noticeably lower than on non-Bora days. This aligns with local expectations, as Bora winds are known to bring cold, dry air from the northeast.
 To better visualize the difference, we used a boxplot comparing the temperature distributions. The box for Bora days lies visibly lower than that for non-Bora days, reinforcing the finding that Bora is typically associated with colder weather. This result highlights a clear meteorological impact of the Bora beyond just wind behavior.
 
 ```{r}
