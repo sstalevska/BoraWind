@@ -92,7 +92,7 @@ bora_data <- all_data |>
   )
 
 
-head(bora_data)
+print(bora_data)
 ```
 ## 1. How often does the Bora blow in Trieste?
 
@@ -155,51 +155,53 @@ ggplot(bora_by_month, aes(x = month, y = events)) +
 ```
 
 ## 2. Is it true, as people claim in Trieste, that the Bora blows for an odd number of days?
-Bora blew for 997 streaks in the records.
-605 of them had an odd length, while 392 had an even length. 
-The exact binomial test gives a p value of 1.6 × 10⁻¹¹ which is far below 0.05 so the result is significant.
-The estimated chance that any streak has an odd length is about 0.61 with a 95 percent confidence range from 0.58 to 0.64.  
-The data backs up the local belief that the Bora tends to blow for an odd number of days.
+
 ```{r}
 library(tidyverse)
+library(lubridate)
 
-# unique Bora days
-bora_days <- bora_data |>
-  mutate(date = as.Date(paste(YEAR, month, day, sep = "-"))) |>
-  distinct(date) |>
-  arrange(date)
+bora_days <- all_data %>% 
+  filter(wind_speed_kmH >= 36,
+         wind_direction_FromN >= 0,
+         wind_direction_FromN <= 90) %>% 
+  mutate(date = as.Date(paste(YEAR, month, day, sep = "-"))) %>% 
+  distinct(date) %>% 
+  arrange(date) %>% 
+  mutate(new_streak = c(TRUE, diff(date) > 1),
+         streak_id   = cumsum(new_streak))
 
-# consecutive‑day streak ids
-bora_days <- bora_days |>
-  mutate(new_streak = c(TRUE, diff(date) != 1)) |>
-  mutate(streak_id = cumsum(new_streak))
+# length for every streak and the year it starts
+streak_info <- bora_days %>% 
+  group_by(streak_id) %>% 
+  summarise(start_date = first(date),
+            len        = n(),
+            .groups    = "drop") %>% 
+  mutate(year = year(start_date))
 
-# length of each streak
-streaks <- bora_days |>
-  group_by(streak_id) |>
-  summarise(length = n(), .groups = "drop")
+per_year_len <- streak_info %>% 
+  count(year, len, name = "n_streaks")
 
-# counts of odd vs even streaks
-odd_count  <- sum(streaks$length %% 2 == 1)
-even_count <- sum(streaks$length %% 2 == 0)
-total_streaks <- nrow(streaks)
+avg_len <- per_year_len %>% 
+  group_by(len) %>% 
+  summarise(avg_per_year = mean(n_streaks),
+            .groups = "drop")
+print(avg_len)
 
-# exact binomial test
-binom.test(odd_count, total_streaks, p = 0.5)
-
-# bar plot
-ggplot(tibble(parity = c("Odd", "Even"),
-              count  = c(odd_count, even_count)),
-       aes(parity, count, fill = parity)) +
-  geom_col(show.legend = FALSE) +
-  geom_text(aes(label = count), vjust = -0.3) +
-  scale_fill_manual(values = c("Odd" = "lightpink", "Even" = "grey")) +
-  labs(title = "Bora streaks by parity of length",
-       x = NULL, y = "Number of streaks") +
+avg_len %>% 
+  filter(len <= 7) %>% 
+  ggplot(aes(factor(len), avg_per_year)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Average Bora streak count per year by length",
+       x = "Streak length in days",
+       y = "Average count per year") +
   theme_minimal()
 
-```
+streak_info %>% 
+  filter(len > 1) %>% 
+  mutate(parity = if_else(len %% 2 == 0, "even", "odd")) %>% 
+  count(parity)
 
+```
 ## 3. Average monthly distribution (seasonality)
 For seasonality we grouped these Bora hours by year and by numeric month. That gave twelve counts for every year. Next we took the mean of those counts across the twenty five year span to obtain the average number of Bora events for each month. The tibble printed below the graph lists those averages. January shows about 87 events per year. February is even higher than that, with almost 91 events. Numbers drop in the spring months and reach a minimum, that is 21 events, in June. Activity begins to rise in August and climbs back above 70 in November with December near 78. The bar plot visualises this curve. Each light blue bar stands for a month numbered one through twelve on the horizontal axis. The vertical axis shows the mean count of hourly events. The tallest bars sit over the winter months while the lowest bar sits over June. The shape confirms that the Bora is most active from mid autumn through late winter and quiets down in early summer.
 ```{r bora_monthly_avg}
@@ -207,10 +209,14 @@ bora_by_month_year <- bora_data |>
   group_by(YEAR, month) |>
   summarise(events = n(), .groups = "drop")
 
+head(bora_by_month_year)
+
 bora_month_avg <- bora_by_month_year |>
   group_by(month) |>
   summarise(avg_events = mean(events), .groups = "drop") |>
   mutate(month = factor(month, levels = 1:12))
+
+print(bora_month_avg)
 
 ggplot(bora_month_avg, aes(month, avg_events)) +
   geom_col(fill = "lightblue") +
@@ -231,32 +237,27 @@ As we can observe on the plot daily trends of Bora peak at around 9h, and then d
 library(lubridate)
 library(dplyr)
 
-# a proper UTC datetime from the columns
 bora_local <- bora_data %>%
   mutate(
-    dt_utc = make_datetime(
-      year  = as.integer(YEAR),
-      month = month,
-      day   = day,
-      hour  = hour,
-      tz    = "UTC"
-    ),
-    dt_local = with_tz(dt_utc, "Europe/Rome"),
+    dt_utc    = make_datetime(as.integer(YEAR), month, day, hour, tz = "UTC"),
+    dt_local  = with_tz(dt_utc, "Europe/Rome"),
     local_hour = hour(dt_local)
   )
 
-# count by local hour
 bora_by_local_hour <- bora_local %>%
   group_by(local_hour) %>%
   summarise(events = n(), .groups = "drop") %>%
   complete(local_hour = 0:23, fill = list(events = 0)) %>%
   mutate(local_hour = factor(local_hour, levels = 0:23))
 
+print(bora_by_local_hour)
+
 ggplot(bora_by_local_hour, aes(local_hour, events)) +
   geom_col(fill = "lightpink") +
   labs(
     title = "Total Bora Events by Local Hour (CET/CEST)",
-    x = "Local Hour", y = "Number of Events"
+    x     = "Local Hour",
+    y     = "Number of Events"
   ) +
   theme_minimal()
 
