@@ -292,44 +292,47 @@ ggplot(bora_days, aes(x = as.numeric(YEAR), y = bora_day_count)) +
 
 ### 6. Finally, choose at least a different measurement available in the data set (temperature, pressure, ...) and evaluate the association with the Bora.
 
-We calculated the average daily temperature for both Bora and Non-Bora data. The results showed that the mean temperature on Bora days was noticeably lower than on non-Bora days. This aligns with local expectations, as Bora winds are known to bring cold, dry air from the northeast.
-To better visualize the difference, we used a boxplot comparing the temperature distributions. The box for Bora days lies visibly lower than that for non-Bora days, reinforcing the finding that Bora is typically associated with colder weather. This result highlights a clear meteorological impact of the Bora beyond just wind behavior.
+We calculated the average monthly temperature for both Bora and Non-Bora data. The results showed that the mean temperature on Bora days was noticeably lower than on non-Bora days. This aligns with local expectations, as Bora winds are known to bring cold, dry air from the northeast.
+To visualize the difference, we used a histogram for comparing the temperature distributions, per month. The box for Bora days lies visibly lower than that for non-Bora days, reinforcing the finding that Bora is typically associated with colder weather. This result highlights a clear meteorological impact of the Bora beyond just wind behavior.
 
 ```{r}
-# Filter again and define Bora and Non-Bora conditions
+library(tidyverse)
+
+# Filter and define Bora and Non-Bora
 temp_df <- all_data |>
   filter(!is.na(wind_speed_kmH_MAX),
          !is.na(wind_direction_FromN),
-         !is.na(temperatureC)) |>
+         !is.na(temperatureC),
+         !is.na(month)) |>
   mutate(is_bora = wind_speed_kmH_MAX * 0.27778 >= 10 &
            wind_direction_FromN >= 45 &
            wind_direction_FromN <= 90)
 
-# Prepare temperature vectors
-bora_temp <- temp_df |>
-  filter(is_bora) |>
-  pull(temperatureC)
+# Prepare temperature dataset
+temp_month_df <- temp_df |>
+  mutate(
+    month = factor(month, levels = 1:12, labels = month.name),
+    Type = ifelse(is_bora, "Bora", "Non-Bora")
+  ) |>
+  group_by(month, Type) |>
+  summarise(avg_temp = mean(temperatureC, na.rm = TRUE), .groups = "drop")
 
-nonbora_temp <- temp_df |>
-  filter(!is_bora) |>
-  pull(temperatureC)
-
-# Summary means
-mean_bora <- mean(bora_temp, na.rm = TRUE)
-mean_nonbora <- mean(nonbora_temp, na.rm = TRUE)
-
-print(glue::glue("Average Bora temp: {round(mean_bora, 2)} °C"))
-print(glue::glue("Average Non-Bora temp: {round(mean_nonbora, 2)} °C"))
-
-# Boxplot
-ggplot(data.frame(
-  Type = rep(c("Bora Days", "Non-Bora Days"), times = c(length(bora_temp), length(nonbora_temp))),
-  Temp = c(bora_temp, nonbora_temp)
-), aes(x = Type, y = Temp, fill = Type)) +
-  geom_boxplot(show.legend = FALSE) +
-  labs(title = "Temperature Comparison: Bora vs Non-Bora Days",
-       y = "Daily Avg Temp (°C)", x = "") +
-  theme_minimal()
+# Plot
+ggplot(temp_month_df, aes(x = month, y = avg_temp, fill = Type)) +
+  geom_col(position = position_dodge(width = 0.6), width = 0.5) +
+  labs(
+    title = "Average Temperature per Month: Bora vs Non-Bora Days",
+    x = "Month",
+    y = "Average Temperature (°C)",
+    fill = NULL
+  ) +
+  scale_fill_manual(values = c("Bora" = "skyblue", "Non-Bora" = "orange")) +
+  scale_y_continuous(breaks = seq(-10, 30, by = 5)) +  # <--- Add finer Y axis labels
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "top"
+  )
 
 ```
 
